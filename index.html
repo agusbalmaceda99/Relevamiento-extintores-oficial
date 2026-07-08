@@ -1,393 +1,818 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Extintores</title>
-    <!-- Tailwind CSS para diseño rápido y limpio -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Lucide Icons para los íconos modernos -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Biblioteca para generar códigos QR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Biblioteca para generar archivos Excel (.xlsx) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Biblioteca para generar PDF de impresión -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Chequeo de Extintores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#1b1815;
+  --bg-elev:#221e1a;
+  --card:#2a2521;
+  --card-hover:#332d27;
+  --border:#42392f;
+  --text:#f2ece2;
+  --text-muted:#a89a89;
+  --burgundy:#7a2222;
+  --burgundy-light:#a33636;
+  --amber:#e0a53d;
+  --green:#5c9c56;
+  --green-dim:#3c5c3a;
+  --red:#c14b3e;
+  --red-dim:#5c342f;
+  --gray-needle:#6b6157;
+  --radius:12px;
+  --radius-sm:8px;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;}
+#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+
+/* ---------- topbar ---------- */
+.topbar{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--burgundy) 0%, #611a1a 100%);padding:16px 18px 14px;border-bottom:3px solid var(--amber);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;flex:none;}
+.brand-text h1{font-family:'Oswald',sans-serif;font-size:19px;font-weight:600;letter-spacing:.3px;margin:0;text-transform:uppercase;}
+.brand-text p{margin:1px 0 0;font-size:11.5px;color:#e9c9a8;letter-spacing:.5px;}
+.topbar-row{display:flex;gap:8px;margin-top:12px;}
+.topbar-row select, .topbar-row input{flex:1;background:#00000030;border:1px solid #ffffff30;color:#fff;border-radius:var(--radius-sm);padding:9px 10px;font-family:'Inter',sans-serif;font-size:13.5px;}
+.topbar-row select option{color:#000;}
+
+/* ---------- lista ---------- */
+main{flex:1;padding:14px 14px 90px;}
+.scan-fallback{background:var(--card);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;}
+.scan-fallback label{display:block;font-size:11.5px;color:var(--text-muted);margin-bottom:7px;}
+.scan-fallback-row{display:flex;gap:8px;}
+.scan-fallback-row input{flex:1;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:13px;text-transform:uppercase;}
+.scan-fallback-row button{flex:none;background:var(--amber);border:none;color:#241c0f;font-weight:700;padding:0 18px;border-radius:var(--radius-sm);font-size:13px;}
+.summary-strip{display:flex;gap:8px;margin-bottom:14px;}
+.pill{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
+.pill b{display:block;font-family:'IBM Plex Mono',monospace;font-size:20px;line-height:1.1;}
+.pill span{font-size:10px;color:var(--text-muted);letter-spacing:.4px;text-transform:uppercase;}
+.pill.total b{color:var(--text);}
+.pill.done b{color:var(--green);}
+.pill.pend b{color:var(--amber);}
+
+.filters{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
+.chip{flex:none;padding:7px 13px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-size:12.5px;font-weight:600;white-space:nowrap;}
+.chip.active{background:var(--amber);color:#241c0f;border-color:var(--amber);}
+
+.sector-group{margin-bottom:6px;}
+.sector-title{font-family:'Oswald',sans-serif;font-size:12.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-muted);margin:16px 2px 8px;}
+
+.card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;margin-bottom:8px;cursor:pointer;}
+.card:active{background:var(--card-hover);}
+.gauge{flex:none;}
+.card-info{flex:1;min-width:0;}
+.card-info .id{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;color:var(--amber);}
+.card-info .loc{font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-status{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:4px 8px;border-radius:20px;}
+.card-status.pend{background:#4a3a1e;color:var(--amber);}
+.card-status.ok{background:var(--green-dim);color:#bfe3ba;}
+.card-status.bad{background:var(--red-dim);color:#f3c6c0;}
+
+.empty{text-align:center;color:var(--text-muted);padding:40px 10px;font-size:13.5px;}
+
+/* ---------- form screen ---------- */
+.form-header{padding:16px 18px;background:var(--bg-elev);border-bottom:1px solid var(--border);}
+.back-btn{background:none;border:none;color:var(--amber);font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;padding:0;margin-bottom:10px;display:flex;align-items:center;gap:5px;cursor:pointer;}
+.fx-title{display:flex;align-items:center;gap:12px;}
+.fx-title .id{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--amber);}
+.fx-title .loc{font-size:13.5px;color:var(--text-muted);margin-top:2px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.info-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;}
+.info-item span{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);}
+.info-item b{font-size:13px;font-family:'IBM Plex Mono',monospace;font-weight:600;}
+
+.section{padding:16px 18px 6px;}
+.section-title{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--amber);margin:6px 0 10px;}
+
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:13.5px;margin-bottom:7px;color:var(--text);}
+.field input[type=text], .field input[type=number], .field input[type=date], .field textarea{
+  width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);
+  padding:10px 11px;font-family:'Inter',sans-serif;font-size:14px;
+}
+.field textarea{resize:vertical;min-height:64px;}
+
+.toggle3{display:flex;gap:6px;}
+.toggle3 button{flex:1;padding:11px 4px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-weight:700;font-size:12.5px;letter-spacing:.3px;}
+.toggle3 button.sel-ok{background:var(--green-dim);color:#c9edc5;border-color:var(--green);}
+.toggle3 button.sel-bad{background:var(--red-dim);color:#f6d0ca;border-color:var(--red);}
+.toggle3 button.sel-na{background:#3a3630;color:#cfc6ba;border-color:var(--gray-needle);}
+
+.estado-toggle{display:flex;gap:8px;}
+.estado-toggle button{flex:1;padding:13px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-muted);font-weight:700;font-size:13px;}
+.estado-toggle button.op.sel{background:var(--green-dim);border-color:var(--green);color:#c9edc5;}
+.estado-toggle button.nop.sel{background:var(--red-dim);border-color:var(--red);color:#f6d0ca;}
+
+.save-bar{position:sticky;bottom:0;padding:14px 18px 20px;background:linear-gradient(180deg, transparent, var(--bg) 30%);}
+.save-btn{width:100%;padding:15px;border:none;border-radius:var(--radius);background:var(--amber);color:#241c0f;font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;}
+.save-btn:disabled{opacity:.5;}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--green-dim);color:#dff5db;border:1px solid var(--green);padding:11px 18px;border-radius:24px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;z-index:50;}
+.toast.show{opacity:1;}
+
+/* ---------- export sheet ---------- */
+.sheet-overlay{position:fixed;inset:0;background:#000000a0;display:flex;align-items:flex-end;z-index:40;}
+.sheet{background:var(--bg-elev);width:100%;max-width:520px;margin:0 auto;border-radius:16px 16px 0 0;padding:20px 20px 26px;border-top:1px solid var(--border);}
+.sheet h3{font-family:'Oswald',sans-serif;margin:0 0 14px;text-transform:uppercase;letter-spacing:.5px;font-size:15px;}
+.sheet button.opt{width:100%;text-align:left;background:var(--card);border:1px solid var(--border);color:var(--text);padding:13px 14px;border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;}
+.sheet .cancel{background:none;border:none;color:var(--text-muted);width:100%;padding:10px;font-size:13.5px;margin-top:4px;}
+
+.fab{position:fixed;right:18px;bottom:20px;z-index:20;width:52px;height:52px;border-radius:50%;background:var(--amber);border:none;box-shadow:0 4px 14px #00000060;display:flex;align-items:center;justify-content:center;}
+.fab.secondary{right:82px;background:var(--card);border:1px solid var(--border);}
+
+/* ---------- admin ---------- */
+.admin-header{padding:16px 18px;background:var(--bg-elev);border-bottom:1px solid var(--border);}
+.add-btn{width:100%;padding:13px;border:1px dashed var(--amber);border-radius:var(--radius);background:transparent;color:var(--amber);font-weight:700;font-size:13.5px;margin-top:12px;}
+.admin-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;margin-bottom:8px;}
+.admin-row.inactive{opacity:.5;}
+.admin-row .admin-info{flex:1;min-width:0;}
+.admin-row .admin-info .id{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--amber);font-size:13.5px;}
+.admin-row .admin-info .loc{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.admin-row .admin-actions{display:flex;gap:6px;flex:none;}
+.icon-btn{width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-elev);color:var(--text-muted);display:flex;align-items:center;justify-content:center;}
+.badge-baja{font-size:9.5px;text-transform:uppercase;font-weight:700;background:var(--red-dim);color:#f6d0ca;padding:2px 6px;border-radius:8px;margin-left:6px;}
+
+.qr-preview{text-align:center;padding:20px 18px;}
+.qr-preview #qrHolder{display:inline-block;background:#fff;padding:16px;border-radius:12px;margin:14px 0;}
+.qr-preview .id-big{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:var(--amber);}
+</style>
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen pb-24">
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="none" stroke="#e0a53d" stroke-width="2.5"/><path d="M20 10 a10 10 0 0 1 0 20" fill="none" stroke="#5c9c56" stroke-width="2.5"/><path d="M20 10 a10 10 0 0 0 0 20" fill="none" stroke="#c14b3e" stroke-width="2.5"/><line id="brandNeedle" x1="20" y1="20" x2="20" y2="9" stroke="#f2ece2" stroke-width="2"/><circle cx="20" cy="20" r="2.4" fill="#f2ece2"/></svg>
+      <div class="brand-text">
+        <h1>Chequeo de Extintores</h1>
+        <p>FLC-PLA-SSMA-014 · Dec. 351/79 Cap.18</p>
+      </div>
+    </div>
+    <div class="topbar-row">
+      <select id="mesSel"></select>
+      <input id="searchInput" type="text" placeholder="Buscar código o ubicación...">
+    </div>
+  </div>
+  <main id="view"></main>
+</div>
+<button class="fab" id="exportFab" title="Exportar planilla">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241c0f" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+</button>
+<button class="fab secondary" id="adminFab" title="Editar extintores">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e0a53d" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>
+</button>
+<div class="toast" id="toast"></div>
 
-    <!-- ENCABEZADO -->
-    <header class="bg-red-600 text-white shadow-md p-4 sticky top-0 z-10 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-            <i data-lucide="shield-alert" class="w-6 h-6"></i>
-            <h1 class="text-xl font-bold tracking-tight">Relevamiento Extintores</h1>
+<div id="hiddenQrContainer" style="display:none;"></div>
+
+<script>
+const MASTER = [{"id": "A01", "interno": "A01", "sector": "Administración", "recipiente": "682038", "ubicacion": "Administraciòn -Sala de reuniones", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "Georgia"}, {"id": "A02", "interno": "A02", "sector": "Administración", "recipiente": "30355", "ubicacion": "Administraciòn", "anio": "2026", "clase": "ABC", "agente": "HCFC", "capacidad": "5", "marca": ""}, {"id": "A03", "interno": "A03", "sector": "Administración", "recipiente": "2046631", "ubicacion": "Administraciòn(Pasillo dep.)", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "A04", "interno": "A04", "sector": "Administración", "recipiente": "1253639", "ubicacion": "Administraciòn(pasilloGral.)", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "A05", "interno": "A05", "sector": "Administración", "recipiente": "2016746", "ubicacion": "Administraciòn", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "A06", "interno": "A06", "sector": "Administración", "recipiente": "731381", "ubicacion": "Administracion- Cocina", "anio": "2026", "clase": "K", "agente": "Acetato de Potasio", "capacidad": "10", "marca": ""}, {"id": "A07", "interno": "A07", "sector": "Administración", "recipiente": "262096", "ubicacion": "Administraciòn compresores", "anio": "1998", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "L01", "interno": "L01", "sector": "Laboratorio", "recipiente": "680965", "ubicacion": "Oficina Enologos", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "L02", "interno": "L02", "sector": "Laboratorio", "recipiente": "1330596", "ubicacion": "Oficina Enologos", "anio": "2011", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "L03", "interno": "L03", "sector": "Laboratorio", "recipiente": "2042126", "ubicacion": "Laboratorio - Fracc", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "L04", "interno": "L04", "sector": "Laboratorio", "recipiente": "611103", "ubicacion": "Subsuelo Oficina Enologos", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "L05", "interno": "L05", "sector": "Laboratorio", "recipiente": "1896191", "ubicacion": "Laboratorio - Fracc", "anio": "2026", "clase": "ABC", "agente": "HCFC", "capacidad": "3.5", "marca": ""}, {"id": "M01", "interno": "M01", "sector": "Museo", "recipiente": "2016789", "ubicacion": "Museo", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": "YUKÓN"}, {"id": "M02", "interno": "M02", "sector": "Museo", "recipiente": "2016789", "ubicacion": "Museo Sala de gas", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "M03", "interno": "M03", "sector": "Museo", "recipiente": "618896", "ubicacion": "Museo- Entrada", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "M04", "interno": "M04", "sector": "Museo", "recipiente": "611747", "ubicacion": "Museo- Caba", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "M05", "interno": "M05", "sector": "Museo", "recipiente": "611661", "ubicacion": "Museo-Pasillo lateral", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "M06", "interno": "M06", "sector": "Museo", "recipiente": "611558", "ubicacion": "Museo-Sala de radio", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "M07", "interno": "M07", "sector": "Museo", "recipiente": "618940", "ubicacion": "Museo-Caja fuerte", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "M08", "interno": "M08", "sector": "Museo", "recipiente": "619036", "ubicacion": "Museo-Entrada cocina", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "M09", "interno": "M09", "sector": "Museo", "recipiente": "262042", "ubicacion": "Museo- Tablero electrico", "anio": "1998", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "M10", "interno": "M10", "sector": "Museo", "recipiente": "611531", "ubicacion": "Museo- Sala", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "W01", "interno": "W01", "sector": "Wine Bar", "recipiente": "611710", "ubicacion": "Wine Bar-Sala de viñedo", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "W02", "interno": "W02", "sector": "Wine Bar", "recipiente": "619147", "ubicacion": "Wine Bar-Comedor", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "MELISAM"}, {"id": "W03", "interno": "W03", "sector": "Wine Bar", "recipiente": "611167", "ubicacion": "Wine Bar-Comedor", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "W04", "interno": "W04", "sector": "Wine Bar", "recipiente": "611677", "ubicacion": "Wine Bar-Comedor", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "W05", "interno": "W05", "sector": "Wine Bar", "recipiente": "2042194", "ubicacion": "Wine Bar-Entrada", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "W06", "interno": "W06", "sector": "Wine Bar", "recipiente": "731381", "ubicacion": "Wine Bar-Cocina", "anio": "2026", "clase": "K", "agente": "Acetato de Potasio", "capacidad": "10", "marca": ""}, {"id": "D01", "interno": "D01", "sector": "Deposito", "recipiente": "1252997", "ubicacion": "General- Ingreso a fracc.", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D02", "interno": "D02", "sector": "Deposito", "recipiente": "1252994", "ubicacion": "General", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D03", "interno": "D03", "sector": "Deposito", "recipiente": "1252951", "ubicacion": "BOX", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D04", "interno": "D04", "sector": "Deposito", "recipiente": "1252929", "ubicacion": "BOX", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D05", "interno": "D05", "sector": "Deposito", "recipiente": "1252972", "ubicacion": "BOX", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D06", "interno": "D06", "sector": "Deposito", "recipiente": "1252968", "ubicacion": "Ins.etiquetas, capsulas,corchos", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D07", "interno": "D07", "sector": "Deposito", "recipiente": "131766", "ubicacion": "Ins.etiquetas, capsulas,corchos", "anio": "2017", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D08", "interno": "D08", "sector": "Deposito", "recipiente": "1252901", "ubicacion": "Salida ext.Almacen", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D09", "interno": "D09", "sector": "Deposito", "recipiente": "1448162", "ubicacion": "Anexo Deposito", "anio": "2013", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D10", "interno": "D10", "sector": "Deposito", "recipiente": "1252966", "ubicacion": "General-Pasillo Pral almacen)", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D11", "interno": "D11", "sector": "Deposito", "recipiente": "2046249", "ubicacion": "General-Pasillo", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D12", "interno": "D12", "sector": "Deposito", "recipiente": "2046249", "ubicacion": "General-Pasillo", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D13", "interno": "D13", "sector": "Deposito", "recipiente": "1252982", "ubicacion": "General", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D14", "interno": "D14", "sector": "Deposito", "recipiente": "1252975", "ubicacion": "General-Almacen columna central", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D15", "interno": "D15", "sector": "Deposito", "recipiente": "2016570", "ubicacion": "Entrada Almacen", "anio": "2005", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D16", "interno": "D16", "sector": "Deposito", "recipiente": "2046258", "ubicacion": "General-Entrada almacen izq.", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D17", "interno": "D17", "sector": "Deposito", "recipiente": "1253135", "ubicacion": "Botellas-Despalletizado (Columna 9)", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D18", "interno": "D18", "sector": "Deposito", "recipiente": "1252983", "ubicacion": "Botellas-Despaletizado", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D19", "interno": "D19", "sector": "Deposito", "recipiente": "1253114", "ubicacion": "Playa de camiones", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D20", "interno": "D20", "sector": "Deposito", "recipiente": "1252947", "ubicacion": "Playa de camiones", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D21", "interno": "D21", "sector": "Deposito", "recipiente": "1446152", "ubicacion": "Anexo Deposito", "anio": "2013", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "D22", "interno": "D22", "sector": "Deposito", "recipiente": "1253644", "ubicacion": "Pasillo hacia administracion (Dep.)", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": "YUKÓN"}, {"id": "IT 01", "interno": "IT 01", "sector": "Sistema", "recipiente": "25331", "ubicacion": "Sistema", "anio": "2026", "clase": "ABC", "agente": "HCFC", "capacidad": "5", "marca": ""}, {"id": "CA01", "interno": "CA01", "sector": "Caldera", "recipiente": "665304", "ubicacion": "Caldera", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "F01", "interno": "F01", "sector": "Fraccionamiento", "recipiente": "611712", "ubicacion": "Baños PB", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "F02", "interno": "F02", "sector": "Fraccionamiento", "recipiente": "1253680", "ubicacion": "1° Piso- Escalera", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "F03", "interno": "F03", "sector": "Fraccionamiento", "recipiente": "2041535", "ubicacion": "1° Piso - baño", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "F04", "interno": "F04", "sector": "Fraccionamiento", "recipiente": "2042117", "ubicacion": "Sala degustacion", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "F05", "interno": "F05", "sector": "Fraccionamiento", "recipiente": "1253627", "ubicacion": "Pasillo 2 piso (oficinas)", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "F06", "interno": "F06", "sector": "Fraccionamiento", "recipiente": "1252946", "ubicacion": "Entrada Mnto.", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "F17", "interno": "F17", "sector": "Fraccionamiento", "recipiente": "1252923", "ubicacion": "Perimetro Ext.", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "SF01", "interno": "SF01", "sector": "Sala de Filtración", "recipiente": "543255", "ubicacion": "Sala de Filtracion", "anio": "2008", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "B01", "interno": "B01", "sector": "Bodega", "recipiente": "2042151", "ubicacion": "Ingreso expedicion (TK 267)", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "B02", "interno": "B02", "sector": "Bodega", "recipiente": "1330456", "ubicacion": "Deposito subsuelo Expedicion", "anio": "2011", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "B03", "interno": "B03", "sector": "Bodega", "recipiente": "2042142", "ubicacion": "Bodega -Expedicion (TK260)", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "5", "marca": ""}, {"id": "B05", "interno": "B05", "sector": "Bodega", "recipiente": "607897", "ubicacion": "Bodega- Sala filtro de vacio", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "B15", "interno": "B15", "sector": "Bodega", "recipiente": "29398", "ubicacion": "Bodega-Fase 2 (TK28)", "anio": "2005", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "B16", "interno": "B16", "sector": "Bodega", "recipiente": "2016828", "ubicacion": "Bodega-Fase 3 (frente TK466)", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": "YUKÓN"}, {"id": "B17", "interno": "B17", "sector": "Bodega", "recipiente": "262086", "ubicacion": "Bodega- Entrada sala electrica", "anio": "1998", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "B18", "interno": "B18", "sector": "Bodega", "recipiente": "2046636", "ubicacion": "Prensas", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "B19", "interno": "B19", "sector": "Bodega", "recipiente": "262085", "ubicacion": "Dpto. Ins.Enol.interior", "anio": "1998", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "B20", "interno": "B20", "sector": "Bodega", "recipiente": "2042105", "ubicacion": "Bodega (ins. Enologicos)Exterior", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "B21", "interno": "B21", "sector": "Bodega", "recipiente": "4451", "ubicacion": "Bodega S.de barricas-Fase3", "anio": "2009", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "Back-up", "interno": "Back-up", "sector": "Back Up", "recipiente": "2016702", "ubicacion": "Depósito Adm.", "anio": "2025", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "Back-up-1", "interno": "Back-up", "sector": "Back Up", "recipiente": "", "ubicacion": "Depósito Adm.", "anio": "", "clase": "", "agente": "", "capacidad": "", "marca": ""}, {"id": "Back-up-2", "interno": "Back-up", "sector": "Back Up", "recipiente": "", "ubicacion": "Depósito Adm.", "anio": "", "clase": "", "agente": "", "capacidad": "", "marca": ""}, {"id": "T01", "interno": "T01", "sector": "Mantenimiento", "recipiente": "2046244", "ubicacion": "Taller - (interior)", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "T02", "interno": "T02", "sector": "Mantenimiento", "recipiente": "2045674", "ubicacion": "Taller Mtto.(Fraccionamiento)", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "T03", "interno": "T03", "sector": "Mantenimiento", "recipiente": "519376", "ubicacion": "Sala Electrica", "anio": "2007", "clase": "BC", "agente": "CO2", "capacidad": "5", "marca": ""}, {"id": "P05", "interno": "P05", "sector": "Porteria", "recipiente": "2042116", "ubicacion": "Encarpado", "anio": "2026", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "10", "marca": ""}, {"id": "AU01", "interno": "AU01", "sector": "Autoelevadores", "recipiente": "617893", "ubicacion": "Mantenimiento", "anio": "2012", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "1", "marca": ""}, {"id": "AU02", "interno": "AU02", "sector": "Autoelevadores", "recipiente": "25708", "ubicacion": "Almacenes. EXP", "anio": "2012", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "1", "marca": ""}, {"id": "AU03", "interno": "AU03", "sector": "Autoelevadores", "recipiente": "94063", "ubicacion": "Almacenes \n(Carga)", "anio": "2015", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "1", "marca": ""}, {"id": "AU04", "interno": "AU04", "sector": "Autoelevadores", "recipiente": "19598", "ubicacion": "Bodega", "anio": "2010", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "1", "marca": ""}, {"id": "AU05", "interno": "AU05", "sector": "Autoelevadores", "recipiente": "16412", "ubicacion": "Fraccionamiento", "anio": "2015", "clase": "ABC", "agente": "Polvo quimico Seco", "capacidad": "1", "marca": ""}];
+
+const state = {
+  view: 'list',
+  statusFilter: 'ALL',
+  sectorFilter: 'ALL',
+  search: '',
+  mes: '',
+  idx: {},
+  currentId: null,
+  master: MASTER.slice(),
+  showInactive: false,
+};
+
+// --- MIGRACIÓN AL LOCALSTORAGE NATIVO PARA ARREGLAR ERROR DE GUARDADO ---
+function getStorageKey(key) {
+  return "extintores_app_" + key;
+}
+
+async function loadOverrides(){
+  try{
+    const r = localStorage.getItem(getStorageKey('master:overrides'));
+    return r ? JSON.parse(r) : {};
+  }catch(e){ return {}; }
+}
+async function saveOverrides(o){
+  try{
+    localStorage.setItem(getStorageKey('master:overrides'), JSON.stringify(o));
+    return true;
+  } catch(e){
+    showToast('Error al guardar datos locales.');
+    return false;
+  }
+}
+async function loadCustom(){
+  try{
+    const r = localStorage.getItem(getStorageKey('master:custom'));
+    return r ? JSON.parse(r) : [];
+  }catch(e){ return []; }
+}
+async function saveCustom(c){
+  try{
+    localStorage.setItem(getStorageKey('master:custom'), JSON.stringify(c));
+    return true;
+  } catch(e){
+    showToast('Error al guardar datos locales.');
+    return false;
+  }
+}
+async function loadInactive(){
+  try{
+    const r = localStorage.getItem(getStorageKey('master:inactive'));
+    return r ? JSON.parse(r) : {};
+  }catch(e){ return {}; }
+}
+async function saveInactive(i){
+  try{
+    localStorage.setItem(getStorageKey('master:inactive'), JSON.stringify(i));
+    return true;
+  } catch(e){
+    showToast('Error al guardar datos locales.');
+    return false;
+  }
+}
+async function loadIdx(mes){
+  try{
+    const r = localStorage.getItem(getStorageKey('idx:'+mes));
+    return r ? JSON.parse(r) : {};
+  }catch(e){ return {}; }
+}
+async function saveIdx(mes, idx){
+  try{
+    localStorage.setItem(getStorageKey('idx:'+mes), JSON.stringify(idx));
+    return true;
+  }catch(e){ return false; }
+}
+async function loadInsp(mes, id){
+  try{
+    const r = localStorage.getItem(getStorageKey('insp:'+mes+':'+id));
+    return r ? JSON.parse(r) : null;
+  }catch(e){ return null; }
+}
+async function saveInsp(mes, id, data){
+  try{
+    localStorage.setItem(getStorageKey('insp:'+mes+':'+id), JSON.stringify(data));
+    const idx = await loadIdx(mes);
+    idx[id] = {estado: data.estado, ts: data.ts, inspector: data.inspector};
+    await saveIdx(mes, idx);
+    return true;
+  }catch(e){
+    showToast('Error al guardar la inspección.');
+    return false;
+  }
+}
+
+async function refreshMaster(){
+  const [overrides, custom, inactive] = await Promise.all([loadOverrides(), loadCustom(), loadInactive()]);
+  const base = MASTER.map(m => ({ ...m, ...(overrides[m.id]||{}), inactive: !!inactive[m.id] }));
+  const extra = custom.map(c => ({ ...c, inactive: !!inactive[c.id] }));
+  state.master = base.concat(extra);
+  return state.master;
+}
+
+function getOuterSearchParams(){
+  try{
+    if(window.top && window.top !== window && window.top.location && window.top.location.search){
+      return new URLSearchParams(window.top.location.search);
+    }
+  }catch(e){}
+  return new URLSearchParams(window.location.search);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.innerText = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+function buildMesOptions(){
+  const res = []; const d = new Date();
+  for(let i=0; i<6; i++){
+    const m = d.getMonth() - i; const y = d.getFullYear();
+    const nd = new Date(y, m, 1);
+    const code = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
+    res.push(code);
+  }
+  return res;
+}
+function mesLabel(code){
+  const [y, m] = code.split('-');
+  const names = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return names[parseInt(m)-1] + ' ' + y;
+}
+
+function gaugeSvg(status, size){
+  size = size || 40;
+  const colors = {pend:'#6b6157', ok:'#5c9c56', bad:'#c14b3e'};
+  const needleAngle = status==='pend' ? 90 : (status==='ok' ? 35 : 145);
+  const rad = (needleAngle-180) * Math.PI/180;
+  const cx=20, cy=20, r=9;
+  const x2 = cx + r*Math.cos(rad); const y2 = cy + r*Math.sin(rad);
+  return `<svg class="gauge" width="${size}" height="${size}" viewBox="0 0 40 40">
+    <path d="M4 20 A16 16 0 0 1 20 4" fill="none" stroke="#c14b3e" stroke-width="4" stroke-linecap="round"/>
+    <path d="M20 4 A16 16 0 0 1 30.9 9.1" fill="none" stroke="#e0a53d" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30.9 9.1 A16 16 0 0 1 36 20" fill="none" stroke="#5c9c56" stroke-width="4" stroke-linecap="round"/>
+    <line x1="20" y1="20" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${colors[status]}" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="20" cy="20" r="2.6" fill="${colors[status]}"/>
+  </svg>`;
+}
+
+function statusOf(id){
+  const rec = state.idx[id];
+  if(!rec) return 'pend';
+  return rec.estado === 'OPERATIVO' ? 'ok' : 'bad';
+}
+
+async function renderList(){
+  state.idx = await loadIdx(state.mes);
+  const view = document.getElementById('view');
+  const activeMaster = state.master.filter(m=>!m.inactive);
+  
+  let done=0, pend=0, bad=0;
+  activeMaster.forEach(x=>{
+    const s = statusOf(x.id);
+    if(s==='ok') done++; else if(s==='bad') bad++; else pend++;
+  });
+
+  const sectors = ['ALL'].concat([...new Set(activeMaster.map(x=>x.sector).filter(Boolean))]);
+  const q = state.search.toLowerCase();
+  const items = activeMaster.filter(m=>{
+    if(state.statusFilter!=='ALL' && statusOf(m.id)!==(state.statusFilter==='OK'?'ok':(state.statusFilter==='BAD'?'bad':'pend'))) return false;
+    if(state.sectorFilter!=='ALL' && m.sector!==state.sectorFilter) return false;
+    if(q && !m.id.toLowerCase().includes(q) && !m.ubicacion.toLowerCase().includes(q) && !m.sector.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  let html = `
+    <div class="scan-fallback">
+      <label>¿El escaneo QR falló? Ingresá el código manualmente:</label>
+      <div class="scan-fallback-row">
+        <input type="text" id="manualCode" placeholder="Ej: A01" autocomplete="off">
+        <button id="manualGo">Ir</button>
+      </div>
+    </div>
+    <div class="summary-strip">
+      <div class="pill total"><b>${activeMaster.length}</b><span>Totales</span></div>
+      <div class="pill done"><b>${done}</b><span>Operativos</span></div>
+      <div class="pill pend"><b>${pend}</b><span>Pendientes</span></div>
+    </div>
+    <div class="filters">
+      ${[['ALL','Todos'],['PEND','Pendientes'],['OK','Operativos'],['BAD','No Op.']].map(([k,v])=>`<button class="chip ${state.statusFilter===k?'active':''}" data-f="${k}">${v}</button>`).join('')}
+    </div>
+    <div class="filters">
+      ${sectors.map(s=>`<button class="chip ${state.sectorFilter===s?'active':''}" data-s="${s}">${s==='ALL'?'Todos los Sectores':s}</button>`).join('')}
+    </div>
+  `;
+
+  if(!items.length){
+    html += `<div class="empty">No se encontraron extintores que coincidan con el filtro.</div>`;
+  } else {
+    let lastSector = null;
+    for(const m of items){
+      if(m.sector !== lastSector){
+        html += `<div class="sector-title">${m.sector||'Sin sector'}</div>`;
+        lastSector = m.sector;
+      }
+      const st = statusOf(m.id);
+      const statusLabel = st==='pend' ? 'Pendiente' : (st==='ok' ? 'Operativo' : 'No operativo');
+      html += `<div class="card" data-id="${m.id}">
+        ${gaugeSvg(st)}
+        <div class="card-info">
+          <div class="id">${m.id}</div>
+          <div class="loc">${m.ubicacion}</div>
         </div>
-        <span id="mes-actual" class="bg-red-700 px-3 py-1 rounded-full text-xs font-semibold"></span>
-    </header>
+        <div class="card-status ${st==='pend'?'pend':(st==='ok'?'ok':'bad')}">${statusLabel}</div>
+      </div>`;
+    }
+  }
+  view.innerHTML = html;
 
-    <main class="max-w-md mx-auto p-4 space-y-4">
-        <!-- VISTA DE RELEVAMIENTO (FORMULARIO) -->
-        <section id="vista-formulario" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-gray-200 space-y-4">
-            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-                <div>
-                    <h2 id="form-id" class="text-2xl font-black text-red-600">--</h2>
-                    <p id="form-ubicacion" class="text-sm text-gray-500 font-medium">--</p>
-                </div>
-                <button onclick="volverALista()" class="text-gray-400 hover:text-gray-600 p-2">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
+  const goToManual = ()=>{
+    const code = document.getElementById('manualCode').value.trim();
+    if(!code){ showToast('Ingresá un código'); return; }
+    const found = state.master.find(x=>x.id.toLowerCase()===code.toLowerCase());
+    if(!found){ showToast('No se encontró ese código'); return; }
+    state.currentId = found.id; state.view = 'form'; renderForm();
+  };
+  document.getElementById('manualGo').addEventListener('click', goToManual);
+  document.getElementById('manualCode').addEventListener('keydown', (e)=>{ if(e.key==='Enter') goToManual(); });
 
-            <!-- Checklist -->
-            <div class="space-y-3 pt-2">
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                    <span class="font-medium text-gray-700">1. Manómetro en rango verde</span>
-                    <input type="checkbox" id="chk-manometro" class="w-5 h-5 accent-red-600 rounded">
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                    <span class="font-medium text-gray-700">2. Precinto e muesca intactos</span>
-                    <input type="checkbox" id="chk-precinto" class="w-5 h-5 accent-red-600 rounded">
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                    <span class="font-medium text-gray-700">3. Manguera y boquilla sanas</span>
-                    <input type="checkbox" id="chk-manguera" class="w-5 h-5 accent-red-600 rounded">
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                    <span class="font-medium text-gray-700">4. Acceso despejado y visible</span>
-                    <input type="checkbox" id="chk-acceso" class="w-5 h-5 accent-red-600 rounded">
-                </label>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                    <span class="font-medium text-gray-700">5. Tarjeta de control vigente</span>
-                    <input type="checkbox" id="chk-tarjeta" class="w-5 h-5 accent-red-600 rounded">
-                </label>
-            </div>
+  view.querySelectorAll('.card').forEach(c=>{
+    c.addEventListener('click', ()=>{ state.currentId = c.dataset.id; state.view = 'form'; renderForm(); });
+  });
+  document.getElementById('statusFilters').querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{ state.statusFilter = c.dataset.f; renderList(); });
+  });
+  document.getElementById('sectorFilters').querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{ state.sectorFilter = c.dataset.s; renderList(); });
+  });
+}
 
-            <!-- Observaciones -->
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Observaciones / Comentarios</label>
-                <textarea id="txt-observaciones" rows="2" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500" placeholder="Escribí acá si encontraste alguna anomalía..."></textarea>
-            </div>
+function fieldToggle3(key, current){
+  const opts = [['OK','ok'],['NO OK','bad'],['N/A','na']];
+  return `<div class="toggle3" data-key="${key}">
+    ${opts.map(([v,cls])=>`<button type="button" data-v="${v}" class="${current===v?'sel-'+cls:''}">${v}</button>`).join('')}
+  </div>`;
+}
 
-            <button onclick="guardarInspeccion()" class="w-full bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-red-700 active:scale-[0.98] transition flex justify-center items-center gap-2">
-                <i data-lucide="check-circle" class="w-5 h-5"></i> Guardar Registro
-            </button>
-        </section>
+async function renderForm(){
+  const m = state.master.find(x=>x.id===state.currentId);
+  const view = document.getElementById('view');
+  if(!m){ view.innerHTML = `<div class="empty">Extintor no encontrado.</div>`; return; }
+  const existing = await loadInsp(state.mes, m.id);
+  const d = existing || {};
 
-        <!-- VISTA DE LISTA GENERAL -->
-        <section id="vista-lista" class="space-y-3">
-            <div class="flex justify-between items-center px-1">
-                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Estado de Planta</h3>
-                <span id="contador-progreso" class="text-xs font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">0/0</span>
-            </div>
-            <div id="contenedor-extintores" class="space-y-2.5">
-                <!-- Se autogenera con JS -->
-            </div>
-        </section>
+  view.innerHTML = `
+    <div class="form-header">
+      <button class="back-btn" id="backBtn">&larr; Volver al listado</button>
+      <div class="fx-title">
+        ${gaugeSvg(existing ? (d.estado==='OPERATIVO'?'ok':'bad') : 'pend', 46)}
+        <div>
+          <div class="id">${m.id}</div>
+          <div class="loc">${m.ubicacion}</div>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><span>Sector</span><b>${m.sector||'-'}</b></div>
+        <div class="info-item"><span>N° recipiente</span><b>${m.recipiente||'-'}</b></div>
+        <div class="info-item"><span>Año fabricación</span><b>${m.anio||'-'}</b></div>
+        <div class="info-item"><span>Clase/Agente</span><b>${m.clase||'-'} / ${m.agente||'-'} (${m.capacidad||'-'}kg)</b></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="field"><label>Nombre del Inspector *</label><input type="text" id="f_inspector" value="${d.inspector||''}"></div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">1. Aspectos Generales y Ubicación</div>
+      <div class="field"><label>¿Tiene señalética? (Chapa baliza)</label>${fieldToggle3('senaletica', d.senaletica)}</div>
+      <div class="field"><label>¿Posee colgador para pared? (Soporte)</label>${fieldToggle3('colgador', d.colgador)}</div>
+      <div class="field"><label>¿Tiene demarcación en el piso?</label>${fieldToggle3('demarcacion', d.demarcacion)}</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">2. Estado del Extintor</div>
+      <div class="field"><label>¿Manómetro en buenas condiciones?</label>${fieldToggle3('manometroCond', d.manometroCond)}</div>
+      <div class="field"><label>¿Manómetro indica cargado? (Zona verde)</label>${fieldToggle3('manometroCargado', d.manometroCargado)}</div>
+      <div class="field"><label>¿Buen estado general del extintor? (Sin golpes/óxido)</label>${fieldToggle3('estadoGeneral', d.estadoGeneral)}</div>
+      <div class="field"><label>¿El seguro y precinto se encuentran bien?</label>${fieldToggle3('seguro', d.seguro)}</div>
+      <div class="field"><label>¿Las etiquetas son legibles?</label>${fieldToggle3('etiquetas', d.etiquetas)}</div>
+      <div class="field"><label>¿Manguera y boquilla en buen estado?</label>${fieldToggle3('manguera', d.manguera)}</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">3. Vencimientos y Registro</div>
+      <div class="field"><label>Vencimiento prueba hidráulica</label><input type="date" id="f_vph" value="${d.vencHidraulica||''}"></div>
+      <div class="field"><label>Vencimiento de la carga</label><input type="date" id="f_vc" value="${d.vencCarga||''}"></div>
+      <div class="field"><label>Marca del Extintor</label><input type="text" id="f_marca" value="${d.marca||m.marca||''}"></div>
+      <div class="field"><label>Observaciones / Anomalías encontradas</label><textarea id="f_obs">${d.observaciones||''}</textarea></div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">CONCLUSIÓN FINAL *</div>
+      <div class="field">
+        <div class="estado-toggle">
+          <button type="button" class="op ${d.estado==='OPERATIVO'?'sel':''}" data-v="OPERATIVO">OPERATIVO</button>
+          <button type="button" class="nop ${d.estado==='NO OPERATIVO'?'sel':''}" data-v="NO OPERATIVO">NO OPERATIVO</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="save-bar">
+      <button class="save-btn" id="saveBtn">Guardar Inspección</button>
+    </div>
+  `;
 
-        <!-- VISTA CONFIGURACIÓN INTERNA -->
-        <section id="vista-config" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-gray-200 space-y-4">
-            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-                <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">
-                    <i data-lucide="settings" class="w-5 h-5 text-gray-500"></i> Panel de Gestión Interna
-                </h2>
-                <button onclick="volverALista()" class="text-gray-400 hover:text-gray-600 p-2">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
+  document.getElementById('backBtn').addEventListener('click', ()=>{ state.view='list'; state.currentId=null; renderList(); });
 
-            <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Lista de Códigos QR</label>
-                <div id="lista-descarga-qr" class="max-h-64 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
-                    <!-- Se llena dinámicamente -->
-                </div>
-            </div>
+  const toggles = {};
+  const questions = ['senaletica','colgador','demarcacion','manometroCond','manometroCargado','estadoGeneral','seguro','etiquetas','manguera'];
+  questions.forEach(k => { toggles[k] = d[k] || ''; });
 
-            <!-- UNICO BOTON AGREGADO ABAJO DE LA LISTA -->
-            <button onclick="descargarTodosLosQrPDF()" class="w-full bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md hover:bg-gray-900 transition flex justify-center items-center gap-2 text-sm mt-2">
-                <i data-lucide="file-text" class="w-4 h-4"></i> Descargar Todos los QR juntos (PDF)
-            </button>
-        </section>
-    </main>
+  view.querySelectorAll('.toggle3').forEach(group=>{
+    group.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const key = group.dataset.key; toggles[key] = btn.dataset.v;
+        group.querySelectorAll('button').forEach(b=>b.className='');
+        btn.className = btn.dataset.v=='OK'?'sel-ok':(btn.dataset.v=='NO OK'?'sel-bad':'sel-na');
+      });
+    });
+  });
 
-    <!-- MENÚ DE NAVEGACIÓN FIJO (INFERIOR) -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-xl px-6 py-2 flex justify-around items-center max-w-md mx-auto z-10">
-        <button onclick="volverALista()" class="flex flex-col items-center text-red-600 gap-0.5">
-            <i data-lucide="list-todo" class="w-6 h-6"></i>
-            <span class="text-[10px] font-bold">Relevamiento</span>
-        </button>
-        <button onclick="abrirConfiguracion()" class="flex flex-col items-center text-gray-400 hover:text-gray-600 gap-0.5">
-            <i data-lucide="qr-code" class="w-6 h-6"></i>
-            <span class="text-[10px] font-bold">Panel QR</span>
-        </button>
-        <button onclick="exportarExcel()" class="flex flex-col items-center text-gray-400 hover:text-green-600 gap-0.5">
-            <i data-lucide="download" class="w-6 h-6"></i>
-            <span class="text-[10px] font-bold">Bajar Excel</span>
-        </button>
-    </nav>
+  let estadoVal = d.estado || '';
+  const estadoBtns = view.querySelectorAll('.estado-toggle button');
+  estadoBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      estadoVal = btn.dataset.v;
+      estadoBtns.forEach(b=>b.classList.remove('sel'));
+      btn.classList.add('sel');
+    });
+  });
 
-    <!-- Contenedores técnicos ocultos -->
-    <div id="qr-oculto" class="hidden"></div>
-    <div id="plantilla-pdf-impresion" class="hidden bg-white p-8 space-y-8 text-center" style="width: 700px;"></div>
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    const inspector = document.getElementById('f_inspector').value.trim();
+    if(!inspector){ showToast('Ingresá el nombre del inspector'); return; }
+    if(!estadoVal){ showToast('Seleccioná el estado del extintor'); return; }
 
-    <!-- LOGICA DE LA APLICACIÓN -->
-    <script>
-        const extintoresBase = [
-            { id: "A01", ubicacion: "Acceso Principal - Oficinas" },
-            { id: "A02", ubicacion: "Pasillo Central Administrativo" },
-            { id: "A03", ubicacion: "Sector Cómputos / Servidor" },
-            { id: "P01", ubicacion: "Producción - Línea de Montaje 1" },
-            { id: "P02", ubicacion: "Producción - Línea de Montaje 2" },
-            { id: "P03", ubicacion: "Depósito de Materia Prima" },
-            { id: "P04", ubicacion: "Taller de Mantenimiento Mecánico" },
-            { id: "P05", ubicacion: "Sector Compresores" },
-            { id: "P06", ubicacion: "Depósito de Producto Terminado" },
-            { id: "E01", ubicacion: "Pañol de Herramientas" },
-            { id: "E02", ubicacion: "Comedor de Personal" },
-            { id: "E03", ubicacion: "Sector Tableros Eléctricos Principales" }
-        ];
+    const data = {
+      inspector,
+      marca: document.getElementById('f_marca').value.trim(),
+      vencHidraulica: document.getElementById('f_vph').value,
+      vencCarga: document.getElementById('f_vc').value,
+      estado: estadoVal,
+      observaciones: document.getElementById('f_obs').value.trim(),
+      ts: new Date().toISOString(),
+      ...toggles
+    };
 
-        let baseDatos = [];
-        let idSeleccionado = null;
-        let mesActualClave = "";
+    const ok = await saveInsp(state.mes, m.id, data);
+    if(!ok) return;
+    showToast('Inspección guardada ✓');
+    setTimeout(()=>{ state.view='list'; state.currentId=null; renderList(); }, 700);
+  });
+}
 
-        window.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            const fecha = new Date();
-            const nombreMes = meses[fecha.getMonth()];
-            mesActualClave = `${nombreMes}-${fecha.getFullYear()}`;
-            document.getElementById('mes-actual').innerText = `${nombreMes.toUpperCase()} ${fecha.getFullYear()}`;
+async function exportMes(mes){
+  showToast('Generando planilla...');
+  const idx = await loadIdx(mes);
+  const rows = [];
+  const header = ['ID','Mes','Inspector','Sector','N° Interno','N° de Recipiente','Ubicación','Año de fabricación', 'Clase de Fuego','Agente extintor','Capacidad Kg','¿Tiene señaletica? (Chapa baliza)', '¿Posee colgador para pared? (Soporte)','¿Tiene demarcación en el piso?', '¿Se encuentra en buenas condiciones el manometro?','¿El manómetro indica cargado? (zona verde).', '¿Se encuentra en buen estado general el extintor?','¿Se encuentra en buen estado el seguro?', '¿Las etiquetas son legibles?','¿Manguera en buen estado?','Vencimiento prueba hidraulica', 'Vencimiento de la carga','Estado (Operativo- No operativo)','Marca Extintor','Observaciones'];
+  rows.push(header);
+  
+  let n=1;
+  for(const m of state.master){
+    const insp = idx[m.id] ? await loadInsp(mes, m.id) : null;
+    rows.push([
+      n++, mesLabel(mes), insp?insp.inspector:'', m.sector, m.id, m.recipiente, m.ubicacion, m.anio, m.clase, m.agente, m.capacidad,
+      insp?insp.senaletica:'', insp?insp.colgador:'', insp?insp.demarcacion:'', insp?insp.manometroCond:'', insp?insp.manometroCargado:'', insp?insp.estadoGeneral:'', insp?insp.seguro:'', insp?insp.etiquetas:'', insp?insp.manguera:'', insp?insp.vencHidraulica:'', insp?insp.vencCarga:'', insp?insp.estado:'', insp?insp.marca:'', insp?insp.observaciones:''
+    ]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+  XLSX.writeFile(wb, `Chequeo_Extintores_${mes}.xlsx`);
+}
 
-            const datosGuardados = localStorage.getItem(`inspecciones_${mesActualClave}`);
-            if (datosGuardados) {
-                baseDatos = JSON.parse(datosGuardados);
-            } else {
-                baseDatos = extintoresBase.map(e => ({
-                    ...e,
-                    inspeccionado: false,
-                    fecha: "",
-                    manometro: false,
-                    precinto: false,
-                    manguera: false,
-                    acceso: false,
-                    tarjeta: false,
-                    observaciones: ""
-                }));
-            }
+function openExportSheet(){
+  const overlay = document.createElement('div'); overlay.className='sheet-overlay';
+  const opts = buildMesOptions();
+  overlay.innerHTML = `
+    <div class="sheet">
+      <h3>Exportar Reporte Mensual (Excel)</h3>
+      ${opts.map(o=>`<button class="opt" data-m="${o}">Descargar planilla de ${mesLabel(o)}</button>`).join('')}
+      <button class="cancel" id="closeSheet">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelectorAll('.opt').forEach(b=>{
+    b.addEventListener('click', ()=>{ exportMes(b.dataset.m); document.body.removeChild(overlay); });
+  });
+  document.getElementById('closeSheet').addEventListener('click', ()=>document.body.removeChild(overlay));
+}
 
-            renderizarLista();
-            comprobarUrlQROpen();
-        });
+function renderAdmin(){
+  const view = document.getElementById('view');
+  let html = `
+    <div class="admin-header">
+      <button class="back-btn" id="backToMain">&larr; Volver a la App</button>
+      <div class="fx-title"><div><div class="id">Panel de Control Interno</div><div class="loc">Configuración de códigos maestros</div></div></div>
+      <button class="add-btn" id="addNewBtn">+ Agregar Nuevo Extintor</button>
+    </div>
+    <div style="padding:14px 0;">
+  `;
+  state.master.forEach(m=>{
+    html += `
+      <div class="admin-row ${m.inactive?'inactive':''}">
+        <div class="admin-info">
+          <div class="id">${m.id} ${m.inactive?'<span class="badge-baja">Inactivo</span>':''}</div>
+          <div class="loc">${m.sector||'Sin sector'} · ${m.ubicacion||'Sin ubi'}</div>
+        </div>
+        <div class="admin-actions">
+          <button class="icon-btn" data-act="qr" data-id="${m.id}" title="Ver QR"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+          <button class="icon-btn" data-act="edit" data-id="${m.id}" title="Editar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="icon-btn" data-act="toggle" data-id="${m.id}" title="${m.inactive?'Reactivar':'Dar de baja'}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${m.inactive?'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>':'<circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>'}</svg></button>
+        </div>
+      </div>
+    `;
+  });
+  
+  // --- ÚNICO BOTÓN AGREGADO AL FINAL DE LA LISTA DE ADMINISTRACIÓN ---
+  html += `
+    <button class="save-btn" id="downloadAllQrsBtn" style="margin-top:14px; background-color:#111; color:#fff; border:1px solid #42392f;">
+      Descargar Todos los QR juntos (PDF)
+    </button>
+  `;
 
-        function comprobarUrlQROpen() {
-            const parametros = new URLSearchParams(window.location.search);
-            const idQR = parametros.get('id');
-            if (idQR) {
-                const ext = baseDatos.find(e => e.id === idQR);
-                if (ext) abrirFormulario(idQR);
-            }
-        }
+  html += `</div>`;
+  view.innerHTML = html;
 
-        function renderizarLista() {
-            const contenedor = document.getElementById('contenedor-extintores');
-            contenedor.innerHTML = '';
-            let listos = 0;
+  document.getElementById('backToMain').addEventListener('click', ()=>{ state.view='list'; renderList(); });
+  
+  // Lógica del botón masivo
+  document.getElementById('downloadAllQrsBtn').addEventListener('click', descargarTodosLosQrPDF);
 
-            baseDatos.forEach(ext => {
-                if (ext.inspeccionado) listos++;
+  view.querySelectorAll('[data-act="qr"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const item = state.master.find(x=>x.id===b.dataset.id); showQrPreview(item);
+    });
+  });
+  view.querySelectorAll('[data-act="edit"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const item = state.master.find(x=>x.id===b.dataset.id); renderEditForm(item, true);
+    });
+  });
+  view.querySelectorAll('[data-act="toggle"]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const inactive = await loadInactive();
+      if(inactive[b.dataset.id]) delete inactive[b.dataset.id]; else inactive[b.dataset.id] = true;
+      await saveInactive(inactive);
+      showToast(inactive[b.dataset.id] ? 'Extintor dado de baja' : 'Extintor reactivado');
+      await refreshMaster(); renderAdmin();
+    });
+  });
+  document.getElementById('addNewBtn').addEventListener('click', ()=> renderEditForm({}, false));
+}
 
-                const tarjeta = document.createElement('div');
-                tarjeta.className = `p-4 rounded-xl shadow-xs border transition cursor-pointer flex items-center justify-between ${
-                    ext.inspeccionado ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:border-gray-300'
-                }`;
-                tarjeta.onclick = () => abrirFormulario(ext.id);
+function renderEditForm(item, isEdit){
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <div class="admin-header">
+      <button class="back-btn" id="backToAdmin">&larr; Cancelar</button>
+      <div class="fx-title"><div><div class="id">${isEdit?'Editar Extintor '+item.id:'Nuevo Extintor'}</div></div></div>
+    </div>
+    <div style="padding:16px 18px 80px;">
+      <div class="field"><label>Código ID Único *</label><input type="text" id="a_id" value="${item.id||''}" ${isEdit?'disabled':''}></div>
+      <div class="field"><label>Sector</label><input type="text" id="a_sector" value="${item.sector||''}"></div>
+      <div class="field"><label>Ubicación Detallada</label><input type="text" id="a_ubicacion" value="${item.ubicacion||''}"></div>
+      <div class="field"><label>N° Recipiente</label><input type="text" id="a_recipiente" value="${item.recipiente||''}"></div>
+      <div class="field"><label>Año Fabricación</label><input type="text" id="a_anio" value="${item.anio||''}"></div>
+      <div class="field"><label>Clase de Fuego (Ej: ABC)</label><input type="text" id="a_clase" value="${item.clase||''}"></div>
+      <div class="field"><label>Agente Extintor (Ej: CO2)</label><input type="text" id="a_agente" value="${item.agente||''}"></div>
+      <div class="field"><label>Capacidad Kg</label><input type="text" id="a_capacidad" value="${item.capacidad||''}"></div>
+      <div class="field"><label>Marca</label><input type="text" id="a_marca" value="${item.marca||''}"></div>
+      <button class="save-btn" id="saveAdminBtn" style="margin-top:10px;">Guardar Cambios</button>
+    </div>
+  `;
+  document.getElementById('backToAdmin').addEventListener('click', ()=>{ renderAdmin(); });
+  document.getElementById('saveAdminBtn').addEventListener('click', async ()=>{
+    const fields = {
+      id: document.getElementById('a_id').value.trim(),
+      sector: document.getElementById('a_sector').value.trim(),
+      ubicacion: document.getElementById('a_ubicacion').value.trim(),
+      recipiente: document.getElementById('a_recipiente').value.trim(),
+      anio: document.getElementById('a_anio').value.trim(),
+      clase: document.getElementById('a_clase').value.trim(),
+      agente: document.getElementById('a_agente').value.trim(),
+      capacidad: document.getElementById('a_capacidad').value.trim(),
+      marca: document.getElementById('a_marca').value.trim(),
+    };
+    if(!fields.id){ showToast('El ID es mandatorio'); return; }
+    if(isEdit){
+      const overrides = await loadOverrides(); const {id, ...rest} = fields;
+      overrides[item.id] = rest; const ok = await saveOverrides(overrides); if(!ok) return;
+      showToast('Extintor actualizado ✓'); state.view='admin'; await refreshMaster(); renderAdmin();
+    } else {
+      const exists = state.master.some(x=>x.id===fields.id); if(exists){ showToast('Ese código ya existe'); return; }
+      const custom = await loadCustom(); custom.push(fields);
+      const ok = await saveCustom(custom); if(!ok) return;
+      await refreshMaster(); showToast('Extintor agregado ✓');
+      const newItem = state.master.find(x=>x.id===fields.id); showQrPreview(newItem);
+    }
+  });
+}
 
-                tarjeta.innerHTML = `
-                    <div class="space-y-0.5">
-                        <div class="flex items-center gap-2">
-                            <span class="text-base font-black ${ext.inspeccionado ? 'text-green-700' : 'text-gray-700'}">${ext.id}</span>
-                            <span class="text-[10px] uppercase font-extrabold px-1.5 py-0.2 rounded-sm ${
-                                ext.inspeccionado ? 'bg-green-200 text-green-800' : 'bg-amber-100 text-amber-800'
-                            }">${ext.inspeccionado ? 'Controlado' : 'Pendiente'}</span>
-                        </div>
-                        <p class="text-xs text-gray-500 font-medium">${ext.ubicacion}</p>
-                    </div>
-                    <i data-lucide="${ext.inspeccionado ? 'check-circle-2' : 'chevron-right'}" class="w-5 h-5 ${ext.inspeccionado ? 'text-green-600' : 'text-gray-300'}"></i>
-                `;
-                contenedor.appendChild(tarjeta);
-            });
+function getBaseUrl(){ return location.origin + location.pathname; }
 
-            document.getElementById('contador-progreso').innerText = `${listos}/${baseDatos.length}`;
-            lucide.createIcons();
-        }
+function showQrPreview(item){
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <div class="admin-header">
+      <button class="back-btn" id="backFromQr">&larr; Volver</button>
+      <div class="fx-title"><div><div class="id">${item.id}</div><div class="loc">Etiqueta QR lista para imprimir</div></div></div>
+    </div>
+    <div class="qr-preview">
+      <div class="id-big">${item.id}</div>
+      <div id="qrHolder"></div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">${item.sector||''} · ${item.ubicacion||''}</div>
+      <button class="save-btn" id="downloadLabelBtn" style="margin-bottom:10px;">Descargar etiqueta (PDF)</button>
+    </div>
+  `;
+  const url = `${getBaseUrl()}?id=${encodeURIComponent(item.id)}`;
+  new QRCode(document.getElementById('qrHolder'), {text:url, width:200, height:200, colorDark:'#1b1815', colorLight:'#ffffff'});
+  document.getElementById('backFromQr').addEventListener('click', ()=>{ state.view='admin'; renderAdmin(); });
+  
+  document.getElementById('downloadLabelBtn').addEventListener('click', ()=>{
+    setTimeout(()=>{
+      const canvas = document.querySelector('#qrHolder canvas');
+      const imgData = canvas ? canvas.toDataURL('image/png') : null;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'mm', format:'a4'});
+      if(imgData){
+        doc.setFont('Helvetica', 'bold'); doc.setFontSize(22); doc.text(`EXTINTOR: ${item.id}`, 20, 20);
+        doc.addImage(imgData, 'PNG', 20, 28, 60, 60);
+        doc.setFont('Helvetica', 'normal'); doc.setFontSize(10);
+        doc.text(`Ubicación: ${item.sector || ''} - ${item.ubicacion || ''}`, 20, 95);
+        doc.text(`Agente: ${item.agente || ''} (${item.capacidad || ''} Kg)`, 20, 101);
+        doc.save(`QR_Extintor_${item.id}.pdf`);
+      }
+    }, 100);
+  });
+}
 
-        function abrirFormulario(id) {
-            idSeleccionado = id;
-            const ext = baseDatos.find(e => e.id === id);
+// --- FUNCIÓN PARA GENERAR TODOS LOS QR EN UN ÚNICO PDF ---
+function descargarTodosLosQrPDF(){
+  showToast('Generando catálogo de QRs...');
+  setTimeout(async () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm', format:'a4'});
+    const activeMaster = state.master.filter(m=>!m.inactive);
+    const container = document.getElementById('hiddenQrContainer');
 
-            document.getElementById('form-id').innerText = ext.id;
-            document.getElementById('form-ubicacion').innerText = ext.ubicacion;
-            document.getElementById('chk-manometro').checked = ext.manometro;
-            document.getElementById('chk-precinto').checked = ext.precinto;
-            document.getElementById('chk-manguera').checked = ext.manguera;
-            document.getElementById('chk-acceso').checked = ext.acceso;
-            document.getElementById('chk-tarjeta').checked = ext.tarjeta;
-            document.getElementById('txt-observaciones').value = ext.observaciones || "";
+    let itemsProcessed = 0;
+    // Configuramos cuadrícula de 2x3 por página
+    const colWidth = 90; const rowHeight = 85;
+    const startX = 15; const startY = 15;
 
-            document.getElementById('vista-lista').classList.add('hidden');
-            document.getElementById('vista-config').classList.add('hidden');
-            document.getElementById('vista-formulario').classList.remove('hidden');
-            window.scrollTo(0,0);
-        }
+    for (let i = 0; i < activeMaster.length; i++) {
+      const ext = activeMaster[i];
+      const pageIdx = itemsProcessed % 6;
+      if (itemsProcessed > 0 && pageIdx === 0) { doc.addPage(); }
 
-        function volverALista() {
-            if (window.location.search) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-            document.getElementById('vista-formulario').classList.add('hidden');
-            document.getElementById('vista-config').classList.add('hidden');
-            document.getElementById('vista-lista').classList.remove('hidden');
-        }
+      const col = pageIdx % 2; const row = Math.floor(pageIdx / 2);
+      const x = startX + (col * colWidth); const y = startY + (row * rowHeight);
 
-        function guardarInspeccion() {
-            const ext = baseDatos.find(e => e.id === idSeleccionado);
-            ext.manometro = document.getElementById('chk-manometro').checked;
-            ext.precinto = document.getElementById('chk-precinto').checked;
-            ext.manguera = document.getElementById('chk-manguera').checked;
-            ext.acceso = document.getElementById('chk-acceso').checked;
-            ext.tarjeta = document.getElementById('chk-tarjeta').checked;
-            ext.observaciones = document.getElementById('txt-observaciones').value.trim();
-            ext.inspeccionado = true;
-            ext.fecha = new Date().toLocaleString('es-AR');
+      // Renderizar el QR transitoriamente
+      container.innerHTML = '';
+      const url = `${getBaseUrl()}?id=${encodeURIComponent(ext.id)}`;
+      const qrObj = new QRCode(container, {text: url, width: 150, height: 150, colorDark: '#000000', colorLight: '#ffffff'});
+      
+      // Forzar lectura inmediata del canvas generado
+      const canvas = container.querySelector('canvas');
+      const imgData = canvas ? canvas.toDataURL('image/png') : null;
 
-            localStorage.setItem(`inspecciones_${mesActualClave}`, JSON.stringify(baseDatos));
-            alert(`¡Registro de Extintor ${idSeleccionado} guardado exitosamente!`);
-            renderizarLista();
-            volverALista();
-        }
+      // Dibujar recuadro de la etiqueta
+      doc.setDrawColor(180); doc.setLineWidth(0.3);
+      doc.rect(x, y, 85, 75);
 
-        function abrirConfiguracion() {
-            document.getElementById('vista-lista').classList.add('hidden');
-            document.getElementById('vista-formulario').classList.add('hidden');
-            document.getElementById('vista-config').classList.remove('hidden');
-            renderizarPanelQr();
-        }
+      // Encabezado interno
+      doc.setFillColor(122, 34, 34); doc.rect(x, y, 85, 10, 'F');
+      doc.setTextColor(255, 236, 226); doc.setFont('Helvetica', 'bold'); doc.setFontSize(12);
+      doc.text(`EXTINTOR ${ext.id}`, x + 4, y + 7);
 
-        function renderizarPanelQr() {
-            const listaQr = document.getElementById('lista-descarga-qr');
-            listaQr.innerHTML = '';
+      if (imgData) { doc.addImage(imgData, 'PNG', x + 20, y + 13, 45, 45); }
 
-            baseDatos.forEach(ext => {
-                const fila = document.createElement('div');
-                fila.className = "flex items-center justify-between p-3 bg-white hover:bg-gray-50";
-                fila.innerHTML = `
-                    <div>
-                        <span class="font-black text-sm text-gray-700">${ext.id}</span>
-                        <p class="text-[11px] text-gray-400 truncate max-w-[200px]">${ext.ubicacion}</p>
-                    </div>
-                    <button onclick="descargarQrUnico('${ext.id}')" class="bg-gray-800 text-white p-2 rounded-lg hover:bg-red-600 transition flex items-center gap-1.5 text-xs font-semibold">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    </button>
-                `;
-                listaQr.appendChild(fila);
-            });
-            lucide.createIcons();
-        }
+      // Texto descriptivo al pie
+      doc.setTextColor(50); doc.setFont('Helvetica', 'normal'); doc.setFontSize(8);
+      const ubiCortada = ext.ubicacion.length > 45 ? ext.ubicacion.substring(0,42)+'...' : ext.ubicacion;
+      doc.text(ubiCortada, x + 4, y + 64);
+      doc.setTextColor(120); doc.setFontSize(7);
+      doc.text('Escanee para registrar inspección mensual', x + 4, y + 69);
 
-        // Toma automáticamente la URL real donde está alojada la web
-        function descargarQrUnico(id) {
-            const urlReal = window.location.origin + window.location.pathname;
-            const contenedorTemp = document.getElementById('qr-oculto');
-            contenedorTemp.innerHTML = '';
+      itemsProcessed++;
+    }
+    
+    container.innerHTML = ''; // Limpiar el buffer temporal
+    doc.save('Planilla_Codigos_QR_Completa.pdf');
+    showToast('PDF de códigos generado ✓');
+  }, 100);
+}
 
-            new QRCode(contenedorTemp, { text: `${urlReal}?id=${id}`, width: 250, height: 250 });
+function initMesSelect(){
+  const sel = document.getElementById('mesSel');
+  const opts = buildMesOptions();
+  sel.innerHTML = opts.map(o=>`<option value="${o}" ${o===state.mes?'selected':''}>${mesLabel(o)}</option>`).join('');
+  sel.addEventListener('change', ()=>{
+    state.mes = sel.value;
+    if(state.view==='list') renderList(); else renderForm();
+  });
+}
 
-            setTimeout(() => {
-                const img = contenedorTemp.querySelector('img');
-                if (img) {
-                    const enlace = document.createElement('a');
-                    enlace.download = `QR_${id}.png`;
-                    enlace.href = img.src;
-                    enlace.click();
-                }
-            }, 200);
-        }
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  state.search = e.target.value;
+  if(state.view==='list') renderList();
+});
+document.getElementById('exportFab').addEventListener('click', openExportSheet);
+document.getElementById('adminFab').addEventListener('click', ()=>{ state.view='admin'; renderAdmin(); });
 
-        // Descarga masiva en PDF sin romper la estética de la app
-        function descargarTodosLosQrPDF() {
-            const urlReal = window.location.origin + window.location.pathname;
-            const panelPdf = document.getElementById('plantilla-pdf-impresion');
-            panelPdf.innerHTML = '<h1 style="font-size:24px; font-weight:bold; color:#b91c1c; margin-bottom:20px; font-family:sans-serif;">Etiquetas de Relevamiento de Extintores</h1>';
-            
-            const grid = document.createElement('div');
-            grid.style.display = 'grid';
-            grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            grid.style.gap = '30px';
-            grid.style.fontFamily = 'sans-serif';
-            panelPdf.appendChild(grid);
-
-            baseDatos.forEach(ext => {
-                const item = document.createElement('div');
-                item.style.border = '2px dashed #9ca3af';
-                item.style.padding = '15px';
-                item.style.borderRadius = '8px';
-                item.style.display = 'flex';
-                item.style.flexDirection = 'column';
-                item.style.alignItems = 'center';
-                item.style.backgroundColor = '#ffffff';
-                
-                const titulo = document.createElement('div');
-                titulo.innerHTML = `<strong style="font-size:20px; color:#b91c1c;">EXTINTOR ${ext.id}</strong>`;
-                item.appendChild(titulo);
-
-                const qrDiv = document.createElement('div');
-                qrDiv.style.margin = '10px 0';
-                item.appendChild(qrDiv);
-                
-                new QRCode(qrDiv, { text: `${urlReal}?id=${ext.id}`, width: 140, height: 140 });
-
-                const sub = document.createElement('div');
-                sub.innerHTML = `<p style="font-size:11px; color:#4b5563; margin:0; max-width:250px; text-align:center;">${ext.ubicacion}</p><span style="font-size:9px; color:#9ca3af;">Escanee para registrar inspección</span>`;
-                item.appendChild(sub);
-                
-                grid.appendChild(item);
-            });
-
-            panelPdf.classList.remove('hidden');
-
-            const opciones = {
-                margin: 10,
-                filename: 'Planilla_Codigos_QR_Extintores.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opciones).from(panelPdf).save().then(() => {
-                panelPdf.classList.add('hidden');
-            });
-        }
-
-        function exportarExcel() {
-            const filasExcel = baseDatos.map(ext => ({
-                "ID Extintor": ext.id,
-                "Ubicación": ext.ubicacion,
-                "Relevado en el Mes": ext.inspeccionado ? "SÍ" : "NO PENDIENTE",
-                "Fecha de Revisión": ext.fecha || "-",
-                "1. Manómetro": ext.inspeccionado ? (ext.manometro ? "OK" : "RECHAZADO") : "-",
-                "2. Precinto": ext.inspeccionado ? (ext.precinto ? "OK" : "RECHAZADO") : "-",
-                "3. Manguera/Boquilla": ext.inspeccionado ? (ext.manguera ? "OK" : "RECHAZADO") : "-",
-                "4. Acceso Despejado": ext.inspeccionado ? (ext.acceso ? "OK" : "RECHAZADO") : "-",
-                "5. Tarjeta Vigente": ext.inspeccionado ? (ext.tarjeta ? "OK" : "RECHAZADO") : "-",
-                "Observaciones Generales": ext.observaciones || "-"
-            }));
-
-            const hoja = XLSX.utils.json_to_sheet(filasExcel);
-            const libro = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(libro, hoja, "Informe Relevamiento");
-            XLSX.writeFile(libro, `Planilla_Extintores_${mesActualClave}.xlsx`);
-        }
-    </script>
+window.addEventListener('DOMContentLoaded', async ()=>{
+  const opts = buildMesOptions(); state.mes = opts[0];
+  initMesSelect();
+  await refreshMaster();
+  
+  const params = getOuterSearchParams();
+  const idQR = params.get('id');
+  if(idQR){
+    const found = state.master.find(x=>x.id.toLowerCase()===idQR.toLowerCase());
+    if(found){ state.currentId = found.id; state.view = 'form'; renderForm(); return; }
+  }
+  renderList();
+});
+</script>
 </body>
 </html>
